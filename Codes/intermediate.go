@@ -37,9 +37,12 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendSuccess(w http.ResponseWriter, result float64) {
-//todo: return success 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(CalculationResponse{Result: result})
 }
 
 func sendError(w http.ResponseWriter, msg string, statusCode int) {
-//todo: return error and error type?
+        w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(CalculationResponse{Error: msg})
 }
