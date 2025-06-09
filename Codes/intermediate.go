@@ -28,12 +28,44 @@ func main() {
 }
 
 func handleCalculate(w http.ResponseWriter, r *http.Request) {
-	//todo:请求格式有误
-	//todo:参数有误
-	//todo:服务器连接失败
-	//todo:请求发送失败
-	//todo：结果读取失败
-	//todo：无效的计算结果
+	var req CalculationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, "无效的请求格式", http.StatusBadRequest)
+		return
+	}
+
+	if req.Function == "" || (req.Unit != "degree" && req.Unit != "radian") {
+		sendError(w, "参数不合法", http.StatusBadRequest)
+		return
+	}
+
+	matlabRequest := fmt.Sprintf("%s,%.8f,%s", strings.ToLower(req.Function), req.Angle, req.Unit)
+
+	conn, err := net.Dial("tcp", "localhost:12345")
+	if err != nil {
+		sendError(w, "无法连接到Matlab服务器", http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	if _, err = fmt.Fprintln(conn, matlabRequest); err != nil {
+		sendError(w, "请求发送失败", http.StatusInternalServerError)
+		return
+	}
+
+	resultBytes, err := io.ReadAll(conn)
+	if err != nil {
+		sendError(w, "结果读取失败", http.StatusInternalServerError)
+		return
+	}
+
+	var result float64
+	if _, err = fmt.Sscanf(string(resultBytes), "%f", &result); err != nil {
+		sendError(w, "无效的计算结果", http.StatusInternalServerError)
+		return
+	}
+
+	sendSuccess(w, result)
 }
 
 func sendSuccess(w http.ResponseWriter, result float64) {
@@ -42,7 +74,7 @@ func sendSuccess(w http.ResponseWriter, result float64) {
 }
 
 func sendError(w http.ResponseWriter, msg string, statusCode int) {
-        w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(CalculationResponse{Error: msg})
 }
