@@ -1,4 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+import requests
 import logging
 from socketserver import ThreadingMixIn
 from urllib.parse import urlparse
@@ -26,13 +28,53 @@ class CalculationHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', content_type)
         self.end_headers()
     
-    #TODO: 2025/6/13  验证请求数据部分未完成
-    def _validate_request(self, data):  
-       return    
+    def _validate_request(self, data):
+        """验证请求数据"""
+        # 检查必需字段
+        required_fields = ['angle', 'unit', 'function']
+        if not all(key in data for key in required_fields):
+            missing = [field for field in required_fields if field not in data]
+            return False, {"error": f"Missing required fields: {', '.join(missing)}"}
+        
+        # 检查角度是否为数字
+        try:
+            angle = float(data['angle'])
+        except (ValueError, TypeError):
+            return False, {"error": "Angle must be a number"}
+        
+        # 检查单位是否合法
+        if data['unit'] not in ['degree', 'radian']:
+            return False, {"error": "Invalid unit. Must be 'degree' or 'radian'"}
+        
+        # 检查三角函数类型是否合法
+        valid_functions = ['sin', 'cos', 'tan']
+        if data['function'] not in valid_functions:
+            return False, {"error": f"Invalid function. Must be one of {', '.join(valid_functions)}"}
+        
+        return True, None
     
-    #TODO: 2025/6/13  请求转发部分未完成
     def _forward_to_go_service(self, data):
-       return
+        """将请求转发给Go中间层服务"""
+        try:
+            response = requests.post(
+                self.GO_SERVICE_URL,
+                json=data,
+                timeout=self.REQUEST_TIMEOUT
+            )
+            response.raise_for_status()  # 检查HTTP错误状态
+            return response.json()
+        except requests.exceptions.Timeout:
+            logger.error("Request to Go service timed out")
+            return {"error": "Go service timeout"}
+        except requests.exceptions.ConnectionError:
+            logger.error("Failed to connect to Go service")
+            return {"error": "Cannot connect to Go service"}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Go service request failed: {str(e)}")
+            return {"error": f"Go service error: {str(e)}"}
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON response from Go service")
+            return {"error": "Invalid response from Go service"}
 
 
 if __name__ == '__main__':
