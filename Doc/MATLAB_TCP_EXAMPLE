@@ -1,0 +1,21 @@
+%在Matlab端，我们需要使用`tcpip`对象来建立TCP连接。以下是一个基本的Matlab客户端示例：
+
+
+% 创建TCP连接
+s = tcpip('localhost', 12345);
+
+% 设置连接超时
+s.Timeout = 10;
+
+% 打开连接
+fopen(s);
+
+% 发送数据到服务器
+data = {'1', '2', '3'}; % 假设我们要发送的是一组数字
+fwrite(s, data, 'char');
+
+% 接收服务器返回的结果
+result = fread(s, 'int32');
+
+% 关闭连接
+fclose(s);
