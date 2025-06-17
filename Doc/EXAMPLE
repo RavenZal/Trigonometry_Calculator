@@ -1,0 +1,128 @@
+MATLAB中使用TCP/IP协议与服务器通信，主要通过 tcpclient 对象实现。
+
+1. 创建TCP/IP客户端对象
+使用 tcpclient 函数连接服务器：
+
+matlab
+% 设置服务器地址和端口
+serverAddress = '192.168.1.100';  % 服务器IP地址
+serverPort = 5000;                % 服务器端口号
+
+% 创建TCP/IP客户端对象
+tcpObj = tcpclient(serverAddress, serverPort);
+2. 配置连接参数（可选）
+matlab
+% 设置超时时间（单位：秒）
+tcpObj.Timeout = 10; 
+
+% 设置字节顺序（默认小端序，网络协议通常为大端序）
+tcpObj.ByteOrder = 'big-endian';
+3. 发送数据到服务器
+matlab
+% 准备发送的数据（字符串或字节数组）
+message = 'Hello, Server!';
+dataToSend = uint8(message);  % 转换为字节数组
+
+% 发送数据
+write(tcpObj, dataToSend);
+4. 接收服务器响应
+(a) 接收指定字节数
+matlab
+% 接收10字节数据
+receivedData = read(tcpObj, 10); 
+
+% 转换为字符串
+response = char(receivedData);
+disp(['Received: ' response]);
+(b) 接收所有可用数据
+matlab
+while tcpObj.BytesAvailable > 0
+    dataChunk = read(tcpObj, tcpObj.BytesAvailable);
+    fullResponse = [fullResponse; dataChunk];
+end
+(c) 接收行终止数据（如文本协议）
+matlab
+% 读取直到遇到换行符
+responseLine = readline(tcpObj);
+disp(['Line received: ' responseLine]);
+5. 异步通信（事件驱动）
+matlab
+% 定义数据到达回调函数
+function dataCallback(src, ~)
+    data = read(src, src.BytesAvailable);
+    disp(['Async data: ' char(data)]);
+end
+
+% 设置回调函数
+configureCallback(tcpObj, "terminator", @dataCallback);
+6. 关闭连接
+matlab
+% 显式关闭连接
+clear tcpObj;
+完整通信示例
+matlab
+function tcpExample()
+    % 连接服务器
+    tcpObj = tcpclient('192.168.1.100', 5000, 'Timeout', 5);
+    
+    % 发送查询命令
+    write(tcpObj, uint8('GET_STATUS'));
+    
+    % 接收响应（假设返回JSON数据）
+    pause(0.5); % 等待数据到达
+    if tcpObj.BytesAvailable > 0
+        jsonData = read(tcpObj, tcpObj.BytesAvailable);
+        status = jsondecode(char(jsonData));
+        disp(status);
+    end
+    
+    % 关闭连接
+    clear tcpObj;
+end
+关键注意事项
+数据格式转换：
+
+发送前：将字符串转为 uint8 字节数组
+
+接收后：使用 char() 转回字符串
+
+二进制数据：直接处理字节数组
+
+错误处理：
+
+matlab
+try
+    write(tcpObj, data);
+catch ME
+    disp(['Error: ' ME.message]);
+    clear tcpObj; % 确保关闭连接
+end
+协议设计：
+
+定义明确的消息边界（如长度前缀或终止符）
+
+使用标准协议（如HTTP、自定义JSON协议）
+
+防火墙设置：
+
+确保服务器端口开放
+
+客户端防火墙允许MATLAB访问网络
+
+调试工具推荐
+网络调试助手：
+
+使用第三方工具（如NetAssist）模拟服务器测试
+
+Wireshark：
+
+抓包分析原始TCP流量
+
+MATLAB内置命令：
+
+matlab
+% 查看对象信息
+disp(tcpObj)
+
+% 监控字节数
+fprintf('Available bytes: %d\n', tcpObj.BytesAvailable);
