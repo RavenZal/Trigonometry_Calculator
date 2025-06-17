@@ -23,19 +23,19 @@ type CalculationResponse struct {
 
 func main() {
 	http.HandleFunc("/calculate", handleCalculate)
-	log.Println("Go中间层启动，监听 :8080")
+	log.Println("Go中间层启动，监听端口 :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func handleCalculate(w http.ResponseWriter, r *http.Request) {
 	var req CalculationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, "无效的请求格式", http.StatusBadRequest)
+		sendError(w, "ERROR:请求格式有误，请重新输入", http.StatusBadRequest)
 		return
 	}
 
 	if req.Function == "" || (req.Unit != "degree" && req.Unit != "radian") {
-		sendError(w, "参数不合法", http.StatusBadRequest)
+		sendError(w, "ERROR:参数不合法，请检查参数", http.StatusBadRequest)
 		return
 	}
 
@@ -43,19 +43,19 @@ func handleCalculate(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := net.Dial("tcp", "localhost:12345")
 	if err != nil {
-		sendError(w, "无法连接到Matlab服务器", http.StatusInternalServerError)
+		sendError(w, "SERVER ERROR:无法连接到Matlab服务器", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
 
 	if _, err = fmt.Fprintln(conn, matlabRequest); err != nil {
-		sendError(w, "请求发送失败", http.StatusInternalServerError)
+		sendError(w, "SERVER ERROR: 请求发送失败", http.StatusInternalServerError)
 		return
 	}
 
 	resultBytes, err := io.ReadAll(conn)
 	if err != nil {
-		sendError(w, "结果读取失败", http.StatusInternalServerError)
+		sendError(w, "SERVER ERROR: 结果读取失败", http.StatusInternalServerError)
 		return
 	}
 
