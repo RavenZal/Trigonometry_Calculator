@@ -74,7 +74,48 @@ class CalculationHandler(BaseHTTPRequestHandler):
             return {"error": f"Go service error: {str(e)}"}
         except json.JSONDecodeError:
             logger.error("Invalid JSON response from Go service")
-            return {"error": "Invalid response from Go service"}
+            return {"error": "Invalid response from Go service"
+    def do_POST(self):
+        """处理POST请求"""
+        # 只处理/calculate路径
+        if self.path != '/calculate':
+            self._set_response(404)
+            self.wfile.write(json.dumps({"error": "Not found"}).encode())
+            return
+            
+        # 检查请求体长度
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length == 0:
+            self._set_response(400)
+            self.wfile.write(json.dumps({"error": "Empty request body"}).encode())
+            return
+            
+        try:
+            # 解析JSON请求体
+            post_data = self.rfile.read(content_length)
+            data = json.loads(post_data)
+        except json.JSONDecodeError:
+            self._set_response(400)
+            self.wfile.write(json.dumps({"error": "Invalid JSON format"}).encode())
+            return
+            
+        # 验证请求数据
+        is_valid, error_response = self._validate_request(data)
+        if not is_valid:
+            self._set_response(400)
+            self.wfile.write(json.dumps(error_response).encode())
+            return
+            
+        # 转发请求到Go服务
+        go_response = self._forward_to_go_service(data)
+        
+        # 处理Go服务的响应
+        if 'error' in go_response:
+            self._set_response(500)
+            self.wfile.write(json.dumps({"error": go_response['error']}).encode())
+        else:
+            self._set_response(200)
+            self.wfile.write(json.dumps({"result": go_response.get('result')}).encode())
 
 
 if __name__ == '__main__':
