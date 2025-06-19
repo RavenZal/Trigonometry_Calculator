@@ -74,7 +74,8 @@ class CalculationHandler(BaseHTTPRequestHandler):
             return {"error": f"Go service error: {str(e)}"}
         except json.JSONDecodeError:
             logger.error("Invalid JSON response from Go service")
-            return {"error": "Invalid response from Go service"
+            return {"error": "Invalid response from Go service"}
+    
     def do_POST(self):
         """处理POST请求"""
         # 只处理/calculate路径
@@ -117,6 +118,22 @@ class CalculationHandler(BaseHTTPRequestHandler):
             self._set_response(200)
             self.wfile.write(json.dumps({"result": go_response.get('result')}).encode())
 
+def run_server(port=8080):
+    """启动HTTP服务器"""
+    server_address = ('', port)
+    httpd = ThreadedHTTPServer(server_address, CalculationHandler)
+    logger.info(f'Starting proxy server on port {port}...')
+    logger.info(f'Forwarding requests to: {CalculationHandler.GO_SERVICE_URL}')
+    
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        logger.info("Received interrupt signal, shutting down...")
+    except Exception as e:
+        logger.error(f"Server error: {str(e)}")
+    finally:
+        httpd.server_close()
+        logger.info('Proxy server stopped')
 
 if __name__ == '__main__':
-    runserver = ThreadedHTTPServer
+    run_server()
