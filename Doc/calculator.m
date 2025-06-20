@@ -1,10 +1,18 @@
  % clear; close all; clc;
 function startServer()
-    %%TODO:端口设计
+     t = tcpip('0.0.0.0', 12345, 'NetworkRole', 'server');
+    fopen(t);
+    disp('Matlab Server Started.');
+    
     % 数据结构要求 字段顺序：函数名,角度值,单位数值;精度：8位小数;单位限制：仅接受degree或radian
     try
         while true
-              % TODO:读取数据
+              % 等待并读取数据
+              data = fread(t, t.BytesAvailable, 'uchar');
+              str = char(data)';
+              [func, angleStr, unit] = strsplit(str, ',');
+              angle = str2double(angleStr);
+            
 
               
             if strcmpi(unit, 'degree')
